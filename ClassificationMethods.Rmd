@@ -1,0 +1,138 @@
+---
+title: "bio_task_eight"
+output: html_document
+date: "2023-06-12"
+---
+
+```{r setup, include=FALSE}
+library(caret)
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+# Install the kernlab package
+install.packages("kernlab")
+library(e1071)  # For Support Vector Machines (SVM)
+```
+
+## Load data and Remove rows with missing values
+
+
+```{r}
+
+load("C:/Users/USER/Downloads/breastcancer2.RData")
+ls()
+write.csv(dat, "test.csv")
+breastcancer2  <- read.csv("test.csv")
+
+breastcancer2 <- na.omit(breastcancer2)
+head(breastcancer2, 5)
+```
+
+## Convert target variable to factor
+
+
+```{r}
+breastcancer2$y <- as.factor(breastcancer2$y)
+```
+
+## (a)
+## Train a linear SVM
+
+```{r}
+linear_svm <- svm(y ~ ., data = breastcancer2, type = "C-classification", kernel = "linear", na.action = na.omit)
+```
+
+## Training accuracy
+
+```{r}
+train_acc <- sum(predict(linear_svm) == breastcancer2$y) / length(breastcancer2$y)
+train_acc
+```
+
+## Cross-validated accuracy
+
+```{r}
+cv_acc <- train( y ~ ., data = breastcancer2, method = "svmLinear", trControl = trainControl(method = "cv", number = 10) )$results$Accuracy
+cv_acc
+```
+
+## (b)
+## Load the tree package
+
+```{r}
+library(tree)
+```
+
+## Construct the decision tree using tree
+
+```{r}
+classification_tree <- tree(y ~ ., data = breastcancer2, split = c("deviance","gini"), control = tree.control(nobs = nrow(breastcancer2), minsize = 5))
+print(classification_tree)
+plot(classification_tree)
+text(classification_tree, pretty = 0)
+```
+
+## Obtain the training accuracy
+
+```{r}
+predicted <- predict(classification_tree, newdata = breastcancer2, type = "class")
+training_accuracy <- mean(predicted == breastcancer2$y)
+```
+
+## Perform 10-fold cross-validation
+
+```{r}
+library(caret)
+cv_results <- train(y ~ ., data = breastcancer2, method = "rpart", trControl = trainControl(method = "cv", number = 10))
+
+```
+
+## Result Accuracy for training tree  and 10 fold CV
+```{r}
+print(training_accuracy)
+print(cv_results$results$Accuracy)
+```
+
+## (c)
+## Using package randomForestSRC  instead of Ranger because of facing Installation problem with ranger.
+```{r}
+install.packages("randomForestSRC")
+library(randomForestSRC)
+```
+## Convert  variables to factors and dataframe and check missing values
+
+```{r}
+breastcancer2 <- lapply(breastcancer2, as.factor)
+breastcancer_df <- as.data.frame(breastcancer2)
+
+# Check for missing values
+if (any(is.na(unlist(breastcancer_df)))) {
+  print("Dataset contains missing values. Handle missing values appropriately.")
+  # Handle missing values in the dataset
+  # ...
+} else {
+  print("No missing values found.")
+}
+```
+##  Fit the classification model using randomForestSRC
+
+```{r}
+classification_model <- rfsrc(formula = y ~ ., data = breastcancer_df)
+```
+## Trainig accuracy  
+
+```{r}
+predicted_labels <- predict(classification_model, data = breastcancer_df)$predicted
+predicted_labels
+train_accuracy <- mean(predicted_labels == breastcancer_df$y)
+```
+
+## 10 fold CV
+```{r}
+cv_model <- rfsrc(formula = y ~ ., data = breastcancer_df, xbest = TRUE, nfold = 10)
+```
+
+## CV accuracy
+```{r}
+cv_predicted_labels <- cv_model$cvms$predicted
+cv_accuracy <- mean(cv_predicted_labels == breastcancer_df$y)
+```
+
